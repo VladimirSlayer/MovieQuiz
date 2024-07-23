@@ -1,6 +1,6 @@
 import UIKit
 
-final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
+final class MovieQuizViewController: UIViewController{
     @IBOutlet private var imageView: UIImageView!
     @IBOutlet private var textLabel: UILabel!
     @IBOutlet private var counterLabel: UILabel!
@@ -9,22 +9,22 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
     private var currentQuestionIndex = 0
     private var correctAnswers = 0
     private let questionsAmount: Int = 10
-    private var statisticService: StatisticService?
+    private var statisticService: StatisticServiceProtocol?
     private var questionFactory: QuestionFactoryProtocol = QuestionFactory()
     private var alertPresenter = AlertPresenter()
     private var currentQuestion: QuizQuestion?
     
-    @IBAction private func yesButtonClicked(_ sender: Any) 
+    @IBAction private func yesButtonClicked(_ sender: Any)
     {
         yesOrNoClicked(givenAnswer: true, currentQuestion: currentQuestion)
     }
     
-    @IBAction private func noButtonClicked(_ sender: Any) 
+    @IBAction private func noButtonClicked(_ sender: Any)
     {
         yesOrNoClicked(givenAnswer: false, currentQuestion: currentQuestion)
     }
     
-    private func showNextQuestionOrResults() 
+    private func showNextQuestionOrResults()
     {
         if currentQuestionIndex == questionsAmount - 1
         {
@@ -32,7 +32,7 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
             let results = QuizResultsViewModel(title: "Этот раунд окончен!", text: "Ваш результат: \(correctAnswers)/10", buttonText: "Сыграть ещё раз")
             show(quiz: results)
         }
-        else 
+        else
         {
             currentQuestionIndex += 1
             self.questionFactory.requestNextQuestion()
@@ -106,22 +106,8 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
         self.questionFactory = questionFactory
         questionFactory.requestNextQuestion()
         let alertPresenter = AlertPresenter()
-        alertPresenter.setup(delegate: self)
+        alertPresenter.delegate = self
         self.alertPresenter = alertPresenter
-    }
-    
-    // MARK: - QuestionFactoryDelegate
-    func didReceiveNextQuestion(question: QuizQuestion?)
-    {
-        guard let question = question else
-        {
-            return
-        }
-        currentQuestion = question
-        let viewModel = convert(model: question)
-        DispatchQueue.main.async { [weak self] in
-            self?.show(quiz: viewModel)
-        }
     }
     
     private func yesOrNoClicked(givenAnswer: Bool, currentQuestion: QuizQuestion?)
@@ -134,6 +120,21 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
         showAnswerResult(isCorrect: givenAnswer == currentQuestion.correctAnswer)
     }
     
+}
+
+extension MovieQuizViewController: QuestionFactoryDelegate{
+    func didReceiveNextQuestion(question: QuizQuestion?)
+    {
+        guard let question = question else
+        {
+            return
+        }
+        currentQuestion = question
+        let viewModel = convert(model: question)
+        DispatchQueue.main.async { [weak self] in
+            self?.show(quiz: viewModel)
+        }
+    }
 }
 
 

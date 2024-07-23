@@ -1,13 +1,8 @@
 import UIKit
 
-class AlertPresenter{
+final class AlertPresenter{
     
     weak var delegate: MovieQuizViewController?
-    
-    func setup(delegate: MovieQuizViewController)
-    {
-        self.delegate = delegate
-    }
     
     func showAlert(alertModel: AlertModel)
     {

@@ -6,11 +6,12 @@ final class MovieQuizViewController: UIViewController{
     @IBOutlet private var counterLabel: UILabel!
     @IBOutlet private var yesButton: UIButton!
     @IBOutlet private var noButton: UIButton!
+    @IBOutlet var activityIndicator: UIActivityIndicatorView!
     private var currentQuestionIndex = 0
     private var correctAnswers = 0
     private let questionsAmount: Int = 10
     private var statisticService: StatisticServiceProtocol?
-    private var questionFactory: QuestionFactoryProtocol = QuestionFactory()
+    private var questionFactory: QuestionFactoryProtocol?
     private var alertPresenter = AlertPresenter()
     private var currentQuestion: QuizQuestion?
     
@@ -24,6 +25,31 @@ final class MovieQuizViewController: UIViewController{
         yesOrNoClicked(givenAnswer: false, currentQuestion: currentQuestion)
     }
     
+    private func showLoadingIndicator(){
+        activityIndicator.isHidden = false
+        activityIndicator.startAnimating()
+    }
+    
+    private func hideLoadingIndicator(){
+        activityIndicator.isHidden = true
+        activityIndicator.stopAnimating()
+    }
+    
+    private func showNetworkError(message:String){
+        hideLoadingIndicator()
+        
+        let model = AlertModel(
+            title: "Ошибка",
+            message: message,
+            buttonText: "Попробовать ещё раз",
+            completion: {_ in
+                self.currentQuestionIndex = 0
+                self.correctAnswers = 0
+                
+                self.questionFactory?.requestNextQuestion()})
+        alertPresenter.showAlert(alertModel: model)
+    }
+    
     private func showNextQuestionOrResults()
     {
         if currentQuestionIndex == questionsAmount - 1
@@ -35,7 +61,7 @@ final class MovieQuizViewController: UIViewController{
         else
         {
             currentQuestionIndex += 1
-            self.questionFactory.requestNextQuestion()
+            self.questionFactory?.requestNextQuestion()
         }
     }
     
@@ -71,7 +97,7 @@ final class MovieQuizViewController: UIViewController{
             completion:{_ in
                 self.currentQuestionIndex = 0
                 self.correctAnswers = 0
-                self.questionFactory.requestNextQuestion()
+                self.questionFactory?.requestNextQuestion()
             })
         alertPresenter.showAlert(alertModel: alertModel)
     }
@@ -79,7 +105,7 @@ final class MovieQuizViewController: UIViewController{
     private func convert(model: QuizQuestion) -> QuizStepViewModel
     {
         let viewModel = QuizStepViewModel(
-            image: UIImage(named: model.image) ?? UIImage(),
+            image: UIImage(data: model.image) ?? UIImage(),
             question: model.text,
             questionNumber: "\(currentQuestionIndex + 1)/\(questionsAmount)")
         return viewModel
@@ -101,13 +127,14 @@ final class MovieQuizViewController: UIViewController{
     {
         super.viewDidLoad()
         statisticService = StatisticService()
-        let questionFactory = QuestionFactory()
-        questionFactory.setup(delegate: self)
+        let questionFactory = QuestionFactory(moviesLoader: MoviesLoader(), delegate: self)
         self.questionFactory = questionFactory
         questionFactory.requestNextQuestion()
         let alertPresenter = AlertPresenter()
         alertPresenter.delegate = self
         self.alertPresenter = alertPresenter
+        showLoadingIndicator()
+        questionFactory.loadData()
     }
     
     private func yesOrNoClicked(givenAnswer: Bool, currentQuestion: QuizQuestion?)
@@ -123,8 +150,7 @@ final class MovieQuizViewController: UIViewController{
 }
 
 extension MovieQuizViewController: QuestionFactoryDelegate{
-    func didReceiveNextQuestion(question: QuizQuestion?)
-    {
+    func didReceiveNextQuestion(question: QuizQuestion?){
         guard let question = question else
         {
             return
@@ -135,6 +161,17 @@ extension MovieQuizViewController: QuestionFactoryDelegate{
             self?.show(quiz: viewModel)
         }
     }
+    
+    func didLoadDataFromServer() {
+        activityIndicator.isHidden = true
+        questionFactory?.requestNextQuestion()
+    }
+    
+    func didFailToLoadData(with error: any Error) {
+        showNetworkError(message: error.localizedDescription)
+    }
+    
+    
 }
 
 
